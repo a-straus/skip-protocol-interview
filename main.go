@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"sync"
 )
 
 const (
@@ -24,6 +25,9 @@ var logger *log.Logger = log.New(os.Stderr, "", log.Ldate|log.Ltime)
 
 var helpFlag bool
 var threads int
+var MAX_GO_ROUTINES = 100
+var semaphore = make(chan struct{}, MAX_GO_ROUTINES)	
+var mutex sync.Mutex
 
 func init() {
 	flag.BoolVar(&helpFlag, "h", false, "Display help information")
@@ -61,7 +65,10 @@ type Collection struct {
 
 type CollectionTraits map[string]map[string]int
 
-func getToken(tid int, colUrl string) (map[string]string, error) {
+func getToken(tid int, colUrl string, traits CollectionTraits, wg *sync.WaitGroup) (map[string]string, error) {
+	defer wg.Done()
+	defer func() { <-semaphore }()
+
 	url := fmt.Sprintf("%s/%s/%d.json", urlBase, colUrl, tid)
 	res, err := http.Get(url)
 	if err != nil {
@@ -79,31 +86,39 @@ func getToken(tid int, colUrl string) (map[string]string, error) {
 		return nil, err
 	}
 
+	mutex.Lock()
+	for trait, value := range attrs {
+		if _, exists := traits[trait]; !exists {
+			traits[trait] = make(map[string]int)
+		}
+		traits[trait][value]++
+	}
+	mutex.Unlock()
+
 	return attrs, nil
 }
 
-func getTokens(col Collection) ([]*Token, CollectionTraits, error) {
+func getTokens(col Collection) ([]*Token, CollectionTraits) {
+	var wg sync.WaitGroup
 	tokens := make([]*Token, col.Count)
 	traits := make(CollectionTraits)
 
 	for i := 0; i < col.Count; i++ {
-		logger.Println(string(COLOR_GREEN), fmt.Sprintf("Getting token %d", i), string(COLOR_RESET))
-		attrs, err := getToken(i, col.Url)
-		if err != nil {
-			logger.Println(fmt.Sprintf("Error getting token %d:", i), err)
-			continue
-		}
+		semaphore <- struct{}{}
+		wg.Add(1)
 
-		tokens[i] = &Token{Id: i, Attrs: attrs}
-		for trait, value := range tokens[i].Attrs {
-			if _, exists := traits[trait]; !exists {
-				traits[trait] = make(map[string]int)
+		go func(i int) {
+			logger.Println(string(COLOR_GREEN), fmt.Sprintf("Getting token %d", i), string(COLOR_RESET))
+			attrs, err := getToken(i, col.Url, traits, &wg)
+			if err != nil {
+				logger.Println(fmt.Sprintf("Error getting token %d:", i), err)
 			}
-			traits[trait][value]++
-		}
+			tokens[i] = &Token{Id: i, Attrs: attrs}
+		}(i)
 	}
+	wg.Wait()
 
-	return tokens, traits, nil
+	return tokens, traits
 }
 
 func calculateTokenRarity(token *Token, traits CollectionTraits) float64 {
@@ -117,14 +132,32 @@ func calculateTokenRarity(token *Token, traits CollectionTraits) float64 {
 }
 
 func calculateRarities(tokens []*Token, traits CollectionTraits) []RarityScorecard {
-	rarities := make([]RarityScorecard, len(tokens))
-	for i, token := range tokens {
-		rarities[i] = RarityScorecard{
-			Rarity: calculateTokenRarity(token, traits),
-			Id:     token.Id,
-		}
+	var wg sync.WaitGroup
+	rarityCh := make(chan RarityScorecard, len(tokens))
+
+	for _, token := range tokens {
+		wg.Add(1)
+		go func(t *Token) {
+			defer wg.Done()
+			rarity := calculateTokenRarity(t, traits)
+			rarityCh <- RarityScorecard{
+				Rarity: rarity,
+				Id: 		t.Id,
+			}
+		}(token)
 	}
-	return rarities
+
+	go func() {
+		wg.Wait()
+		close(rarityCh)
+	}()
+
+	var scorecards []RarityScorecard
+	for scorecard := range rarityCh {
+		scorecards = append(scorecards, scorecard)
+	}
+
+	return scorecards
 }
 
 func writeCSV(rarities []RarityScorecard) error {
@@ -162,15 +195,11 @@ func main() {
 	}
 
 	azuki := Collection{
-		Count: 10,
+		Count: 10000,
 		Url:   "azuki1",
 	}
 
-	tokens, traits, err := getTokens(azuki)
-	if err != nil {
-		logger.Println(string(COLOR_RED), "Error:", err, string(COLOR_RESET))
-		return
-	}
+	tokens, traits := getTokens(azuki)
 
 	rarities := calculateRarities(tokens, traits)
 	sort.Slice(rarities, func(i, j int) bool {
