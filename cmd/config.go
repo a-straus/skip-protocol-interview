@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-const urlBase = "https://go-challenge.skip.money"
+const UrlBase = "https://go-challenge.skip.money"
 
 var (
 	HelpFlag        bool
@@ -15,11 +15,26 @@ var (
 	CollectionURL   string
 )
 
+func ParseAndValidateFlags() error {
+	ParseFlags()
+
+	if HelpFlag {
+		DisplayHelp()
+		return fmt.Errorf("help flag provided")
+	}
+
+	if Threads <= 0 {
+		return fmt.Errorf("number of threads should be greater than 0")
+	}
+
+	return nil
+}
+
 func ParseFlags() {
 	flag.BoolVar(&HelpFlag, "h", false, "Display help information")
 	flag.BoolVar(&HelpFlag, "help", false, "Display help information")
-	flag.IntVar(&Threads, "t", 1, "Number of threads to use for fetching (default is 1)")
-	flag.IntVar(&Threads, "threads", 1, "Number of threads to use for fetching (default is 1)")
+	flag.IntVar(&Threads, "t", 10, "Number of threads to use for fetching (default is 10)")
+	flag.IntVar(&Threads, "threads", 10, "Number of threads to use for fetching (default is 10)")
 	flag.IntVar(&TopTokens, "top", 5, "Number of top rare tokens to display (default is 5)")
 	flag.IntVar(&CollectionCount, "count", 10000, "Number of tokens in the collection (default is 10000)")
 	flag.StringVar(&CollectionURL, "url", "azuki1", "URL of the collection (default is 'azuki1')")
@@ -38,5 +53,5 @@ Options:
 	-count          Number of tokens in the collection to fetch (default is 10000)
 	-url            URL of the collection (default is 'azuki1')
 
-Note: The tool currently fetches data from the following URL base:`, urlBase)
+Note: The tool currently fetches data from the following URL base:`, UrlBase)
 }

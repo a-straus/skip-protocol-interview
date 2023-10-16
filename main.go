@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	urlBase     = "https://go-challenge.skip.money"
 	COLOR_GREEN = "\033[32m"
 	COLOR_RED   = "\033[31m"
 	COLOR_RESET = "\033[0m"
@@ -26,26 +25,17 @@ var (
 )
 
 func main() {
-	cmd.ParseFlags()
-
-	if cmd.HelpFlag {
-		cmd.DisplayHelp()
+	if err := cmd.ParseAndValidateFlags(); err != nil {
+		logger.Error("Error: %v", err)
 		return
 	}
-
-	if cmd.Threads <= 0 {
-		logger.Error("Error: Number of threads should be greater than 0")
-		return
-	}
-
-	semaphore = make(chan struct{}, cmd.Threads)
 
 	azuki := types.Collection{
 		Count: cmd.CollectionCount,
 		Url:   cmd.CollectionURL,
 	}
 
-	tokens, traits := fetcher.GetTokens(azuki, semaphore)
+	tokens, traits := fetcher.GetTokens(azuki)
 
 	rarities := calculator.CalculateRarities(tokens, traits)
 	sort.Slice(rarities, func(i, j int) bool {
@@ -55,5 +45,4 @@ func main() {
 	if err := output.WriteCSV(rarities, cmd.TopTokens); err != nil {
 		logger.Error("Error writing CSV output: %v", err)
 	}
-
 }
