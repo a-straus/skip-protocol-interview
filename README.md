@@ -97,3 +97,14 @@ You can see a list of flags by running:
 ```bash
 go run main.go --help
 ```
+
+## Future Work
+
+Some future additions could include
+
+- More robust error handling
+- Unit tests
+- Changing the base URL to fetch from multiple different possible endpoints
+- Different output types over CSV
+- Optimizations for calculating rarest tokens
+  - Min heap was attempted, however it was found to be slower than go's build in sort method

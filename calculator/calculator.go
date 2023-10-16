@@ -7,7 +7,10 @@ import (
 func CalculateTokenRarity(token *types.Token, traits types.CollectionTraits) float64 {
 	rarity := 0.0
 	for category, value := range token.Attrs {
-		countWithTraitValue := traits[category][value]
+		countWithTraitValue, exists := traits[category][value]
+		if !exists {
+			continue
+		}
 		numValuesInCategory := len(traits[category])
 		rarity += 1 / float64(countWithTraitValue*numValuesInCategory)
 	}
