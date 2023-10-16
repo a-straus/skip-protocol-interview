@@ -21,17 +21,17 @@ func updateTraits(traits types.CollectionTraits, attrs map[string]string, mutex 
 	defer mutex.Unlock()
 
 	for trait, value := range attrs {
-			if _, exists := traits[trait]; !exists {
-					traits[trait] = make(map[string]int)
-			}
-			traits[trait][value]++
+		if _, exists := traits[trait]; !exists {
+			traits[trait] = make(map[string]int)
+		}
+		traits[trait][value]++
 	}
 }
 
 func getToken(tid int, colUrl string, traits types.CollectionTraits, wg *sync.WaitGroup, semaphore chan struct{}, mutex *sync.Mutex) (map[string]string, error) {
 	defer wg.Done()
 	defer func() { <-semaphore }()
-	
+
 	var lastError error
 	for retry := 0; retry < maxRetries; retry++ {
 		url := fmt.Sprintf("%s/%s/%d.json", cmd.UrlBase, colUrl, tid)
