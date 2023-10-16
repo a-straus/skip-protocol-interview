@@ -1,8 +1,8 @@
 package main
 
 import (
-	"sort"
 	"sync"
+	"time"
 
 	"github.com/a-straus/skip-protocol-interview/calculator"
 	"github.com/a-straus/skip-protocol-interview/cmd"
@@ -37,10 +37,12 @@ func main() {
 
 	tokens, traits := fetcher.GetTokens(azuki)
 
+	startTime := time.Now()
 	rarities := calculator.CalculateRarities(tokens, traits)
-	sort.Slice(rarities, func(i, j int) bool {
-		return rarities[i].Rarity > rarities[j].Rarity
-	})
+
+	elapsedTime := time.Since(startTime)
+
+	logger.Info("Rarity calculation took %s", elapsedTime)
 
 	if err := output.WriteCSV(rarities, cmd.TopTokens); err != nil {
 		logger.Error("Error writing CSV output: %v", err)
