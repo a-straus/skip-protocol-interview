@@ -105,6 +105,8 @@ Some future additions could include
 - More robust error handling
 - Unit tests
 - Changing the base URL to fetch from multiple different possible endpoints
+- Better retry logic for fetching a token
 - Different output types over CSV
 - Optimizations for calculating rarest tokens
   - Min heap was attempted, however it was found to be slower than go's build in sort method
+- Using a configuration file isntead of cmd line flags

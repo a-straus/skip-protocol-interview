@@ -11,26 +11,18 @@ import (
 	"github.com/a-straus/skip-protocol-interview/types"
 )
 
-const (
-	COLOR_GREEN = "\033[32m"
-	COLOR_RED   = "\033[31m"
-	COLOR_RESET = "\033[0m"
-	maxRetries  = 3
-)
-
 func main() {
 	if err := cmd.ParseAndValidateFlags(); err != nil {
 		logger.Error("Error: %v", err)
 		return
 	}
 
-	azuki := types.Collection{
+	collection := types.Collection{
 		Count: cmd.CollectionCount,
 		Url:   cmd.CollectionURL,
 	}
 
-	tokens, traits := fetcher.GetTokens(azuki)
-
+	tokens, traits := fetcher.GetTokens(collection)
 	rarities := calculator.CalculateTokenRarities(tokens, traits)
 
 	sort.Slice(rarities, func(i, j int) bool {
