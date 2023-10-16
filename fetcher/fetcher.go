@@ -36,9 +36,13 @@ func getToken(tid int, colUrl string, traits types.CollectionTraits, wg *sync.Wa
 	for retry := 0; retry < maxRetries; retry++ {
 		url := fmt.Sprintf("%s/%s/%d.json", cmd.UrlBase, colUrl, tid)
 		res, err := http.Get(url)
+		if err != nil {
+			lastError = fmt.Errorf("error fetching token %d (attempt %d): %v", tid, retry+1, err)
+			continue
+		}
+		defer res.Body.Close()
 		if err == nil {
 			body, err := io.ReadAll(res.Body)
-			res.Body.Close()
 			if err != nil {
 				lastError = fmt.Errorf("error reading token %d data (attempt %d): %v", tid, retry+1, err)
 				continue
@@ -54,8 +58,6 @@ func getToken(tid int, colUrl string, traits types.CollectionTraits, wg *sync.Wa
 
 			return attrs, nil
 		}
-		lastError = fmt.Errorf("error fetching token %d (attempt %d): %v", tid, retry+1, err)
-		continue
 	}
 
 	return nil, fmt.Errorf("Failed to fetch token %d after %d retries: %v", tid, maxRetries, lastError)
